@@ -5,10 +5,13 @@ import Title1 from "@/components/Title1";
 import useApi from "@/hooks/useApi";
 import {Link} from "expo-router";
 
+import env from "../../routes"
+
+
 export default function LoginScreen() {
-    const {control, handleSubmit, formState: {errors}} = useForm();
-    const [submittedData, setSubmittedData] = useState(null);
-    const {data, loading, error} = useApi("http://192.168.8.221:3000/register", submittedData, "POST")
+    const {control, getValues, formState: {errors}} = useForm();
+    const [submittedData, setSubmittedData] = useState(undefined);
+    const {data, loading, error} = useApi(env.REGISTER_URL, submittedData, "POST" ,null)
     const [customErrors, setCustomErrors] = useState("");
 
     console.log("sur le form register")
@@ -78,7 +81,7 @@ export default function LoginScreen() {
 
 
 
-                <Button title="Submit" onPress={handleSubmit(onSubmit)}/>
+                <Button title="Submit" onPress={onSubmit}/>
 
 
             </View>

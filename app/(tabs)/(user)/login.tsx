@@ -4,31 +4,40 @@ import {SetStateAction, useEffect, useState} from "react";
 import Title1 from "@/components/Title1";
 import {Link} from "expo-router";
 import useApi from "@/hooks/useApi";
+import env from "../../routes"
+
 
 export default function LoginScreen() {
-const {control, getValues, formState: {errors}} = useForm();
-    const [submittedData, setSubmittedData] = useState(null);
-    const {data,loading,error}= useApi("http://192.168.8.221:3000/login",submittedData, "POST")
+
+
+
+    const {control, getValues, formState: {errors}} = useForm();
+    const [submittedData, setSubmittedData] = useState(undefined);
+
+    console.log(env.LOGIN_URL)
+
+    const {data, loading, error} = useApi(env.LOGIN_URL, submittedData, "POST",undefined)
     const [customErrors, setCustomErrors] = useState("");
     console.log("sur le form login")
-    const onSubmit = ( ) =>{
+    const onSubmit = () => {
 
         console.log("formulaire soumis ave cle boutton")
 
-        const formData= getValues()
+        const formData = getValues()
         console.log("Form Data:", formData);
         setSubmittedData(formData); // Met à jour les données soumises
     };
     console.log(submittedData);
     console.log(data)
+
     useEffect(() => {
-        if (error){
+        if (error) {
             console.log("Error:", error);
         }
-        if (data){
+        if (data) {
             console.log("token:", data.token);
         }
-    },[data,error])
+    }, [data, error])
     return (
         <SafeAreaView>
 
@@ -39,7 +48,7 @@ const {control, getValues, formState: {errors}} = useForm();
 
                 <Controller
                     control={control}
-                    render={({ field: { onChange, onBlur, value } }) => (
+                    render={({field: {onChange, onBlur, value}}) => (
                         <TextInput
                             style={styles.input}
                             placeholder="Email"
@@ -58,7 +67,7 @@ const {control, getValues, formState: {errors}} = useForm();
 
                 <Controller
                     control={control}
-                    render={({ field: { onChange, onBlur, value } }) => (
+                    render={({field: {onChange, onBlur, value}}) => (
                         <TextInput
                             style={styles.input}
                             placeholder="Your password"
@@ -74,7 +83,6 @@ const {control, getValues, formState: {errors}} = useForm();
                 {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
 
 
-
                 <TouchableOpacity style={styles.button} onPress={onSubmit}>
                     <Text style={styles.buttonText}>Submit</Text>
                 </TouchableOpacity>
@@ -85,6 +93,7 @@ const {control, getValues, formState: {errors}} = useForm();
                         <Text style={styles.submittedTitle}>Submitted Data:</Text>
                         <Text>Name: {submittedData.name}</Text>
                         <Text>Email: {submittedData.email}</Text>
+                        <Text>Token: {data?.token}</Text>
                     </View>
                 )}
             </View>

@@ -7,10 +7,9 @@ import {useState} from "react";
 
 export default function Index() {
 
-
     //CHUCK NORRIS JOKE
     const [url, setUrl] = useState("https://api.chucknorris.io/jokes/random"); // URL dynamique
-    const {data, loading, error} = useApi(url, undefined, "GET"); // Appel API basé sur l'URL
+    const {data, loading, error} = useApi(url, undefined, "GET",undefined); // Appel API basé sur l'URL
     const reloadJoke = () => {
         setUrl("https://api.chucknorris.io/jokes/random?" + new Date().getTime());
     };
@@ -47,7 +46,7 @@ export default function Index() {
                     <Link style={styles.link} href="/(tabs)/settings">show settings</Link>
                     <Link style={styles.link} href="/(tabs)/(user)/login">show Login</Link>
                     <Link style={styles.link} href="/(tabs)/camera">show Camera</Link>
-
+                    <Link style={styles.link} href="/(tabs)/audio">show audio</Link>
                     <Link style={styles.link} href="/(tabs)/(user)/register">Register</Link>
 
                 </View>

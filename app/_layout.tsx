@@ -1,12 +1,14 @@
 import {Stack} from "expo-router";
-import {Text} from "react-native";
+import {Text, StyleSheet, View} from "react-native";
 
 export default function RootLayout() {
     return (
 
-        <Stack   >
-            <Stack.Screen name="(tabs)"/>
+            <Stack>
 
-        </Stack>
+                <Stack.Screen   name="(tabs)"/>
+
+            </Stack>
+
     )
 }
