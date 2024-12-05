@@ -3,16 +3,20 @@ import {Text, TouchableOpacity, View, Image, useColorScheme, StyleSheet, Button}
 import Title1 from "@/components/Title1";
 import useApi from "@/hooks/useApi";
 import {useState} from "react";
+import useAuth from "@/hooks/useAuth";
 
 
 export default function Index() {
+    const {} = useAuth();
 
     //CHUCK NORRIS JOKE
     const [url, setUrl] = useState("https://api.chucknorris.io/jokes/random"); // URL dynamique
-    const {data, loading, error} = useApi(url, undefined, "GET",undefined); // Appel API basé sur l'URL
+    const {data, loading, error} = useApi(url, undefined, "GET",undefined,undefined); // Appel API basé sur l'URL
     const reloadJoke = () => {
         setUrl("https://api.chucknorris.io/jokes/random?" + new Date().getTime());
     };
+
+
 
     if (error) {
         return <Text>{error}</Text>;

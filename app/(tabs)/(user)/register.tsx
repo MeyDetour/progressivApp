@@ -11,7 +11,7 @@ import env from "../../routes"
 export default function LoginScreen() {
     const {control, getValues, formState: {errors}} = useForm();
     const [submittedData, setSubmittedData] = useState(undefined);
-    const {data, loading, error} = useApi(env.REGISTER_URL, submittedData, "POST" ,null)
+    const {data, loading, error} = useApi(env.REGISTER_URL, submittedData, "POST" ,null,null)
     const [customErrors, setCustomErrors] = useState("");
 
     console.log("sur le form register")
