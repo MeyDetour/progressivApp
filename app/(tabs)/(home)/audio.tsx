@@ -1,4 +1,4 @@
-import {TouchableOpacity, View, Text} from "react-native";
+import {TouchableOpacity, View, Text, Animated} from "react-native";
 import {StyleSheet} from 'react-native';
 import {useEffect, useState} from "react";
 import {Audio} from 'expo-av';
@@ -7,6 +7,7 @@ import {FontAwesome} from "@expo/vector-icons";
 import {Link} from "expo-router";
 import useApi, {SimpleFetch} from "@/hooks/useApi";
 import env from '../../routes'
+import ScrollView = Animated.ScrollView;
 
 export default function AudioScreen() {
 
@@ -64,59 +65,133 @@ export default function AudioScreen() {
                 console.log("stop recording")
                 await recording.stopAndUnloadAsync()
 
-
+                /*============ SAVE FILE==========*/
                 const recordingUri = recording.getURI()
                 const fileName = `recording-${Date.now()}.wav`
                 await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory + 'recordings/', {intermediates: true})
-                await FileSystem.moveAsync(
-                    {
-                        from: recordingUri,
-                        to: FileSystem.documentDirectory + 'recordings/' + fileName,
-                    }
-                )
+                await FileSystem.moveAsync({
+                    from: recordingUri,
+                    to: FileSystem.documentDirectory + 'recordings/' + fileName,
+                })
 
                 console.log("save in : ", FileSystem.documentDirectory + 'recordings/' + fileName)
 
-                setRecording(null)
-                setRecordingStatus('stopped')
-                setConversation([...conversation, {
-                    content: "message " + (conversation.length + 1),
-                    vocalName: fileName,
-                }]);
+
                 console.log("nouvelle conv : ", conversation)
                 console.log("recording -stoped :", recordingStatus)
 
+
+                /*============  GET SAVED FILE ==========*/
                 const fileInfo = await FileSystem.getInfoAsync(FileSystem.documentDirectory + 'recordings/' + fileName);
                 if (!fileInfo.exists) {
                     console.log("Le fichier n'existe pas");
                     return;
                 }
-                console.log(FileSystem.documentDirectory + 'recordings/')
-                const fileBlob = await fetch(FileSystem.documentDirectory + 'recordings/')
-                    .then(response => response.blob()) // Convertir le fichier en Blob
-                    .catch(error => {
-                        console.error("Erreur lors de la conversion en Blob :", error);
-                        throw error;
-                    });
 
+                /*      const fileInFileType = await fetch(FileSystem.documentDirectory + 'recordings/' + fileName)
+                          .then(async response => {
+                              if (!response.ok) {
+                                  throw new Error(`Failed to fetch file: ${response.statusText}`);
+                              }
+                              /!*return await response.blob();*!/
+                              const blob = await response.blob();
+                              return new File([blob], fileName, {type: "audio/wav"});
+                          });
+                      console.log("type du ficheri:", typeof fileInFileType)
+                      console.log("File Details:", fileInFileType.name, fileInFileType.size, fileInFileType.type);
 
+                      console.log("le file avec ['_data']", fileInFileType)
+                      console.log("le file sans ['_data'] :", fileInFileType['_data'])
+                      console.log("nom du fichier :", fileInFileType.name)
+      */
+
+                /*============ REQUEST TO GET TEXT FROM VOICE ==========*/
                 const formData = new FormData()
-                formData.append("file", fileBlob,fileName)
                 formData.append("model", "base")
                 formData.append("language", "fr")
                 formData.append("inital_prompt", "string")
-                formData.append("vad_filter", "false")
-                formData.append("min_silence_duration_ms", "1000")
+                formData.append("vad_filter", false)
+                formData.append("min_silence_duration_ms", 1000)
                 formData.append("response_format", "text")
 
-                let headers = {
-                   "Authorization": "Bearer Token dummy_api_key",
 
+                /* formData.append("file", fileInFileType);*/
+                formData.append("file", {
+                    uri: FileSystem.documentDirectory + 'recordings/' + fileName, // Assurez-vous d'utiliser 'uri' pour React Native
+                    type: "audio/wav",  // Le type MIME
+                    name: fileName, // Nom du fichier
+                });
+
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ": " + pair[1]);
                 }
-                const response = SimpleFetch(env.WAV_TO_TEXT, undefined, 'POST', fileToSend,headers)
 
-                console.log("Réponse API :", response);
+                let textFromVoice: string = ""
+                let responseToText: string = ""
+                let linkOfResponse: string = ""
 
+                try {
+
+                    let headers = {
+                        "Authorization": "Bearer dummy_api_key",
+                        "Content-Type": "multipart/form-data"
+                    }
+                    const response = await fetch(env.WAV_TO_TEXT, {
+                        method: "POST",
+                        headers: headers,
+                        body: formData,
+                    });
+
+                    const responseJson = await response.json();
+                    console.log("Réponse API :", responseJson);
+                    console.log("Response texte :", responseJson.text);
+                    textFromVoice = responseJson.text
+                    /*           const response = await SimpleFetch(env.WAV_TO_TEXT, null, 'POST', formData, headers);
+                         */
+                } catch (error) {
+                    console.error("Erreur lors de l'appel à l'API :", error);
+                }
+
+
+                /*============ REQUEST TO GET TEXT RESPONSE TO TEXT SEND ==========*/
+                let headers = {
+                    "Content-Type": "application/json"
+                }
+                try {
+                    const response = await SimpleFetch(env.TEXT_TO_RESPONSE, {
+                        "model": "llama3.2",
+                        "prompt": textFromVoice,
+                        "stream": false
+                    }, 'POST', null, headers);
+                    console.log("Réponse de l'API 2 :", response.response);
+                    responseToText = response.response
+                } catch (error) {
+                    console.error("Erreur lors de l'appel à l'API :", error);
+                }
+
+
+                /*============ REQUEST TO GET VOICE FROM TEXT RESPONSE ==========*/
+                /*  try {
+                   const response = await SimpleFetch(env.RESPONSE_TO_WAV, null, 'POST', null, headers);
+                   console.log("Réponse de l'API 3:", response.response);
+                   responseToText = response.response
+               } catch (error) {
+                   console.error("Erreur lors de l'appel à l'API :", error);
+               }
+
+*/
+
+                setRecording(null)
+                setRecordingStatus('stopped')
+                setConversation([...conversation, {
+                    content: textFromVoice,
+                    vocalName: fileName,
+                    vocalLink: null,
+                }, {
+                    content: responseToText,
+                    vocalName: null,
+                    vocalLink: fileName,
+                }]);
             }
         } catch (err) {
             console.log("faile to stop recordging : ", err)
@@ -197,7 +272,7 @@ export default function AudioScreen() {
                 <FontAwesome name={"user"} size={32} color={"black"}></FontAwesome>
 
             </View>
-            <View style={styles.audioContainer}>
+            <ScrollView contentContainerStyle={styles.audioContainer}>
                 {Array.isArray(conversation) && conversation.map((message, index) => (
                     <View key={index} style={[styles.message, index % 2 == 0 ? styles.message1 : styles.message2]}>
                         <Text>vocal {message.vocalName}</Text>
@@ -221,7 +296,7 @@ export default function AudioScreen() {
                 ))}
 
 
-            </View>
+            </ScrollView>
 
             <TouchableOpacity style={styles.microphone} onPress={handleRecordButtonPress}>
                 <FontAwesome name={recording ? "square" : "microphone"} size={32} color={"black"}></FontAwesome>
@@ -235,9 +310,9 @@ const styles = StyleSheet.create({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "space-between",
+        justifyContent: "flex-start",
         width: "100%",
-        height: "90%",
+        height: "100%",
         padding: 20
     },
     header: {
@@ -255,13 +330,13 @@ const styles = StyleSheet.create({
         color: "black",
     },
     audioContainer: {
-        display: "flex",
         flexDirection: "column",
         alignItems: "center",
         width: "100%",
         gap: 10,
+        paddingBottom: 20,
+        maxHeight: "80%",
         height: "80%",
-        overflowY: "scroll",
     },
 
     message: {
@@ -269,6 +344,8 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 0.5,
         borderStyle: "solid",
+        maxWidth : "80%",
+        width : "auto"
     }, message1: {
         backgroundColor: "#faebeb",
         borderColor: "#eabbbb",

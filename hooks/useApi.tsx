@@ -78,14 +78,11 @@ export default function useApi(link: string, body: object | undefined | null, me
 
 
 export async function SimpleFetch(link: string, body: object | undefined | null, method: string = 'GET', formData: object | undefined | null,headers :object): any {
-    console.log(link, body, method, formData);
+    console.log(link, body, method, formData,headers);
 
 
-    if (!body && method === 'POST' && !formData) {
-
-        console.log("pas de body avec une requet post: ")
-        console.log(body, method)
-
+    if (method === 'POST' && !body && !formData) {
+        console.error("Aucun body ou formData fourni pour une requête POST.");
         return null;
     }
 
@@ -100,18 +97,27 @@ export async function SimpleFetch(link: string, body: object | undefined | null,
         let response =  await fetch(link, {
             method: method,
             headers: headers,
-            body: method !== "GET" ?  formData ? formData : JSON.stringify(body) : undefined,
+
+            body: method !== "GET" ? (formData || JSON.stringify(body)) : undefined,
         })
-        response = await response.json()
-        console.log(response)
-        if (response.ok) {
-            console.log("Fichier envoyé avec succès :", await response.json());
-        } else {
-            console.error("Erreur lors de l'envoi :", response.status);
+
+        if (!response.ok) {
+            console.error("Erreur lors de l'envoi :", response.status, response.statusText);
+            throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
         }
+
+
+
+        // Tentative de désérialisation du corps de la réponse
+        const responseJS = await response.json();
+        console.log("Réponse déserialisée :", responseJS);
+
+        return responseJS;
 
     } catch (err) {
         console.error('Erreur lors de la requête fetch:', err);
+
+        throw err; // Relancer l'erreur pour la gestion en amont
     }
 
 }
