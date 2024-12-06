@@ -456,6 +456,7 @@ const styles = StyleSheet.create({
         width: "100%",
         gap: 10,
         paddingBottom: 10,
+        paddingHorizontal: 20,
         overflowY: "scroll",
     },
 
@@ -464,8 +465,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 0.5,
         borderStyle: "solid",
-        maxWidth: "80%",
-        width: "80%",
+        width: "auto",
         paddingVertical: 30,
         display: "flex",
         flexDirection: "column",
