@@ -5,22 +5,42 @@ import useApi, {SimpleFetch} from "@/hooks/useApi";
 import {SetStateAction, useEffect, useState} from "react";
 import useAuth from "@/hooks/useAuth";
 import env from "@/app/routes";
+import useSetAuth from "@/hooks/useSetAuth";
 import useDestroyToken from "@/hooks/useDestroyToken";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
-export default function Index() {
+export default function Home() {
+    console.log("IN INDEX")
 
-    const isTokenDestroyed = useDestroyToken(true);
-    console.log("IN UN AUTHENTICATED")
     //color
     const colorScheme = useColorScheme();
-    console.log(colorScheme)
     const titleColor = colorScheme === "dark" ? styles.titleForDark : styles.titleForLight
     const backgroundColor = colorScheme === "dark" ? styles.backgroundForDark : styles.backgroundForLight
 
 
+    const [customError, setError] = useState(null);
+    const [presentationOfAI, setPresentationOfAI] = useState(null);
+
+    console.log("presentation : ",presentationOfAI);
+
+    useEffect(() => {
+        AsyncStorage.getItem('@token:value').then((token) => {
+
+            SimpleFetch(env.TEXT_TO_RESPONSE, {"prompt": "Bonjour, qui es-tu ? Repond moi en deux phrases "}, "POST", undefined, {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }).then((response) => {
+
+                    setPresentationOfAI(response.message)
+                }
+            )
+        })
+    }, []);
+
+
     return (
-        isTokenDestroyed &&
+        presentationOfAI ? (
             <View
                 style={[{
                     flex: 1,
@@ -33,14 +53,16 @@ export default function Index() {
 
                 <Image source={require('../../../assets/images/splash-icon.png')} style={{width: 50, height: 50}}/>
 
-                <Title1 classes={titleColor}>Hello !</Title1>
+                <Title1 classes={titleColor}>Home</Title1>
                 <View style={styles.linksContainer}>
-                    <Link style={styles.link} href="/(tabs)/(user)/login">Login</Link>
+                    <Link style={styles.link} href="/(tabs)/audio">Try Felix !</Link>
+
                 </View>
 
+                <Text style={styles.textPresentation}>{presentationOfAI}</Text>
 
             </View>
-
+        ) : customError && (<Text style={styles.errorText}>{error}</Text>)
 
 
     )
@@ -103,5 +125,12 @@ const styles = StyleSheet.create({
         marginVertical: 10,
         backgroundColor: "#9bbbe6",
         padding: "10"
+    },
+    errorText: {
+        color: 'red',
+        marginBottom: 10,
+    },
+    textPresentation :{
+        textAlign : "center"
     }
 })

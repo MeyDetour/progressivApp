@@ -2,43 +2,77 @@ import {Text, StyleSheet, SafeAreaView, TextInput, View, Button, TouchableOpacit
 import {Controller, useForm} from "react-hook-form";
 import {SetStateAction, useEffect, useState} from "react";
 import Title1 from "@/components/Title1";
-import {Link} from "expo-router";
+import {Link, Redirect} from "expo-router";
 import useApi from "@/hooks/useApi";
 import env from "../../routes"
+import useSetAuth from "@/hooks/useSetAuth";
+import useAuth from "@/hooks/useAuth";
+import {booleanLiteral} from "@babel/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 export default function LoginScreen() {
 
-
+    console.log("IN LOGIN FORM")
 
     const {control, getValues, formState: {errors}} = useForm();
     const [submittedData, setSubmittedData] = useState(undefined);
+    const [token, setToken] = useState<string | null>(null);
 
-    console.log(env.LOGIN_URL)
+    const {data, loading, error} = useApi(env.LOGIN_URL, submittedData, "POST", undefined, null)
 
-    const {data, loading, error} = useApi(env.LOGIN_URL, submittedData, "POST",undefined,null)
+    console.log("=============================")
+    console.log("the current token ", token)
     const [customErrors, setCustomErrors] = useState("");
-    console.log("sur le form login")
+
     const onSubmit = () => {
 
         console.log("formulaire soumis ave cle boutton")
 
         const formData = getValues()
-        console.log("Form Data:", formData);
-        setSubmittedData(formData); // Met à jour les données soumises
+        setSubmittedData(formData);
     };
-    console.log(submittedData);
-    console.log(data)
 
     useEffect(() => {
         if (error) {
             console.log("Error:", error);
+            setCustomErrors(error)
         }
         if (data) {
-            console.log("token:", data.token);
+
+            console.log("Try to SEND IN STORAGE")
+
+            AsyncStorage.setItem(
+                '@token:value',
+                data.token,
+            ).then(
+                () => {
+                    console.log("successfully set")
+                    setToken(data.token)
+                }
+            )
+
         }
     }, [data, error])
+    if (error){
+        return      <Text style={styles.errorText}>{error}</Text>
+    }
+
+    if (token) {
+
+        return <Redirect href="/(tabs)/(home)/home"/>;
+    }
+
+    if (submittedData) {
+        return <SafeAreaView style={{flex: 1}}><Text>Loading ... </Text></SafeAreaView>;
+    }
+
+
+
+
     return (
+
+        !token &&
         <SafeAreaView>
 
             <Title1>Login</Title1>
@@ -51,24 +85,24 @@ export default function LoginScreen() {
                     render={({field: {onChange, onBlur, value}}) => (
                         <TextInput
                             style={styles.input}
-                            placeholder="Email"
+                            placeholder="Username"
                             value={value}
                             onBlur={onBlur}
                             onChangeText={onChange} // Met à jour la valeur dans React Hook Form
                         />
                     )}
-                    name="email"
+                    name="username"
                     rules={{
-                        required: 'You must enter your email',
-                        pattern: {value: /^\S+@\S+$/i, message: 'Enter a valid email address'}
+                        required: 'You must enter your Username',
                     }}
                 />
-                {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                {errors.email && <Text style={styles.errorText}>{errors.username.message}</Text>}
 
                 <Controller
                     control={control}
                     render={({field: {onChange, onBlur, value}}) => (
                         <TextInput
+                            textContentType={"password"}
                             style={styles.input}
                             placeholder="Your password"
                             secureTextEntry
@@ -90,15 +124,11 @@ export default function LoginScreen() {
                 {/* Gönderilen Veriler */}
                 {submittedData && (
                     <View style={styles.submittedContainer}>
-                        <Text style={styles.submittedTitle}>Submitted Data:</Text>
-                        <Text>Name: {submittedData.name}</Text>
-                        <Text>Email: {submittedData.email}</Text>
+                        <Text>Name: {submittedData.username}</Text>
                         <Text>Token: {data?.token}</Text>
                     </View>
                 )}
             </View>
-
-            <Link href="/(tabs)/(user)/register">Go To register</Link>
         </SafeAreaView>
     )
 

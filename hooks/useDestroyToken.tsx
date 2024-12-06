@@ -1,37 +1,35 @@
 import {useEffect, useState} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function useSetAuth(value: string | null): boolean {
-    const [isTokenSet, setIsTokenSet] = useState<boolean>(false);
-    console.log("SET TOKEN IN COOCKEIS :" ,value);
+export default function useDestroyToken(authorization: boolean): boolean {
+    const [isTokenDestroyed, setIsDestroyedToken] = useState<boolean>(false);
+    console.log("DESTROY TOKEN IN COOCKEIS :" ,authorization);
     useEffect(() => {
-        if (!value) {
-            setIsTokenSet(false);
+        if (!authorization) {
+            setIsDestroyedToken(true);
             return;
         }
 
-        console.log("Try to SEND IN STORAGE")
-        async function setToStorage() {
+        async function destroyToken() {
             try {
 
                 console.log("SEND IN STORAGE")
                 await AsyncStorage.setItem(
                     '@token:value',
-                    value,
+                    "",
                 );
-                setIsTokenSet(true);
-                return ;
 
+                setIsDestroyedToken(true);
             } catch (error) {
                 console.error('Error with AsyncStorage', error);
             }
         }
 
-        setToStorage()
+        destroyToken()
 
     }, [])
 
-    return isTokenSet
+    return isTokenDestroyed
 
 
 }

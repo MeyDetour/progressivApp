@@ -2,6 +2,7 @@ import {TouchableOpacity, View, Text, Animated, Dimensions, SafeAreaView} from "
 import {StyleSheet} from 'react-native';
 import {SetStateAction, useEffect, useState} from "react";
 import {Audio} from 'expo-av';
+import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from "expo-file-system"
 import {FontAwesome} from "@expo/vector-icons";
 import {Link} from "expo-router";
@@ -10,11 +11,13 @@ import env from '../../routes'
 import ScrollView = Animated.ScrollView;
 import {Simulate} from "react-dom/test-utils";
 import error = Simulate.error;
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 const screenHeight = Dimensions.get('window').height;
 
 export default function AudioScreen() {
+    const [token, setToken] = useState(null);
 
     const [recording, setRecording] = useState(null)
     const [recordingStatus, setRecordingStatus] = useState('idle')
@@ -30,56 +33,98 @@ export default function AudioScreen() {
     const [apiError, setApiError] = useState(null);
 
     const [bodyWithTextToGetResponse, setBodyWithTextToGetResponse] = useState(undefined);
-    const [lastResponse, setLastResponse] = useState(null)
-    const [responseToTextInUseState, setResponseToTextInUseState] = useState(null)
+    const [responseToText, setResponseToTextInUseState] = useState(null)
+
+
+    const [formDataToGetTextFromVoice, setFormDataToGetTextFromVoice] = useState(undefined);
+    const [headersToGetTextFromVoice, setHeadersToGetTextFromVoice] = useState(undefined);
+    const [lastMessageWithTextFromVoice, setLastMessageWithTextFromVoice] = useState(null)
+    const [lastFileNameOfTextFromVoice, setLastFileNameOfTextFromVoice] = useState(null)
+
+    useEffect(() => {
+        AsyncStorage.getItem('@token:value').then((token) => {
+            setToken(token)
+        })
+    }, []);
+
 
     useEffect(() => {
 
         try {
-            SimpleFetch(env.WAV_TO_TEXT, null, bodyWithTextToGetResponse, undefined, null)
+            SimpleFetch(env.TEXT_TO_RESPONSE, bodyWithTextToGetResponse, 'POST', undefined, {"Authorization": "Bearer " + token})
                 .then(
-                    (response: SetStateAction<null>) =>{
-                    setResponseToTextInUseState(response);
-                }
-            )
+                    (response: SetStateAction<null>) => {
+                        setResponseToTextInUseState(response.message)
+                        setBodyWithTextToGetResponse(undefined);
+
+                    }
+                )
 
         } catch (error) {
-            console.log(error);
             setApiError(error)
 
         }
     }, [bodyWithTextToGetResponse]);
 
+    useEffect(() => {
+        if (headersToGetTextFromVoice && formDataToGetTextFromVoice) {
+            try {
+                SimpleFetch(env.WAV_TO_TEXT, null, 'POST', formDataToGetTextFromVoice, headersToGetTextFromVoice)
+                    .then(
+                        (response: SetStateAction<null>) => {
+
+                            setLastMessageWithTextFromVoice(response.text)
+                            setLastFileNameOfTextFromVoice(formDataToGetTextFromVoice.get('file').name)
+                            setFormDataToGetTextFromVoice(undefined);
+                            setHeadersToGetTextFromVoice(undefined);
+                            if (response.text == "") {
+                                setApiError("audio vide")
+                            }
+
+
+                        }
+                    )
+
+            } catch (error) {
+                console.error("Erreur lors de l'appel à la transformation Voice to Text :", error);
+
+                setApiError("Une erreur s'est produite.", error);
+
+            }
+        }
+
+    }, [formDataToGetTextFromVoice, headersToGetTextFromVoice]);
 
 
     const [urlToGetAudioFromText, setUrlToGetAudioFromText] = useState("");
 
     console.log("================================START===================================")
 
-    console.log("AUDIO.TSX body :", bodyWithTextToGetResponse)
-    console.log("AUDIO.TSX response to texte use state :", responseToTextInUseState)
-    console.log("AUDIO.TSX last question to texte :", lastResponse)
+    console.log("AUDIO.TSX body :", lastMessageWithTextFromVoice)
+    console.log("AUDIO.TSX response to texte use state :", responseToText)
     console.log("AUDIO.TSX url ", urlToGetAudioFromText)
     console.log("================================CHANGEMENTs===================================")
 
+    if (lastMessageWithTextFromVoice) {
+        if (lastMessageWithTextFromVoice != "") {
+            setBodyWithTextToGetResponse({
+                "prompt": `${lastMessageWithTextFromVoice} (français)`,
+            })
+            setConversation([...conversation, {
+                content: lastMessageWithTextFromVoice,
+                vocalName: lastFileNameOfTextFromVoice,
+                vocalLink: null,
+            }]);
+            setLastMessageWithTextFromVoice(null);
 
-
-
-    useEffect(() => {
-        if (responseToTextInUseState && bodyWithTextToGetResponse) {
-                 setLastResponse(responseToTextInUseState);
-                setResponseToTextInUseState(null)
-                setBodyWithTextToGetResponse(undefined);
 
         }
-
-    }, [responseToTextInUseState, bodyWithTextToGetResponse]);
-
-
-    if (lastResponse && !responseToTextInUseState && !bodyWithTextToGetResponse) {
+    }
+    if (responseToText) {
+        setApiError(null)
         console.log("bloc1")
 
-        let responseToTextWithoutSpace = lastResponse.replaceAll(" ", "%20")
+        let responseToTextWithoutSpace = responseToText.replaceAll(" ", "%20")
 
         setUrlToGetAudioFromText(env.RESPONSE_TO_WAV + responseToTextWithoutSpace)
 
@@ -87,17 +132,15 @@ export default function AudioScreen() {
         console.log("ON A LE FICHIER AUDIO :")
 
         setConversation([...conversation, {
-            content: lastResponse,
+            content: responseToText,
             vocalName: null,
             vocalLink: env.RESPONSE_TO_WAV + responseToTextWithoutSpace,
         }])
-        setLastResponse(null)
-        setResponseToTextInUseState(lastResponse)
+        setResponseToTextInUseState(null)
         setUrlToGetAudioFromText(null)
     }
     console.log("AUDIO.TSX body :", bodyWithTextToGetResponse)
-    console.log("AUDIO.TSX response to texte use state :", responseToTextInUseState)
-    console.log("AUDIO.TSX last question to texte :", lastResponse)
+    console.log("AUDIO.TSX response to texte use state :", responseToText)
     console.log("AUDIO.TSX url ", urlToGetAudioFromText)
 
     console.log("==================================END=================================")
@@ -111,7 +154,7 @@ export default function AudioScreen() {
                 })
                 .catch((err) => {
                     console.log("permission granted  error :" + err)
-                    setApiError("Une erreur s'est produite.",err);
+                    setApiError("Une erreur s'est produite.", err);
 
                 })
         }
@@ -129,6 +172,8 @@ export default function AudioScreen() {
 
     async function startRecording() {
         try {
+
+            setApiError(null)
             const newRecording = new Audio.Recording()
             console.log("start recording")
             await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY)
@@ -137,12 +182,14 @@ export default function AudioScreen() {
             setRecordingStatus('recording')
         } catch (err) {
             console.log("faile to start recordging : ", err)
-            setApiError("Une erreur s'est produite.",err);
+            setApiError("Une erreur s'est produite.", err);
         }
     }
 
     async function stopRecording() {
         try {
+
+            setApiError(null)
             if (recordingStatus === "recording") {
 
                 console.log("stop recording")
@@ -173,12 +220,7 @@ export default function AudioScreen() {
                               const blob = await response.blob();
                               return new File([blob], fileName, {type: "audio/wav"});
                           });
-                      console.log("type du ficheri:", typeof fileInFileType)
-                      console.log("File Details:", fileInFileType.name, fileInFileType.size, fileInFileType.type);
 
-                      console.log("le file avec ['_data']", fileInFileType)
-                      console.log("le file sans ['_data'] :", fileInFileType['_data'])
-                      console.log("nom du fichier :", fileInFileType.name)
       */
 
                 setRecording(null)
@@ -202,54 +244,28 @@ export default function AudioScreen() {
                     name: fileName, // Nom du fichier
                 });
 
-
-                let textFromVoice: string = ""
-
-                try {
-                    let headers = {
-                        "Authorization": "Bearer dummy_api_key",
-                        "Content-Type": "multipart/form-data"
-                    }
-                    const responseJson = await SimpleFetch(env.WAV_TO_TEXT, null, 'POST', formData, headers);
-                    textFromVoice = responseJson.text
-
-                    if (textFromVoice != "") {
-
-
-                        /*============ REQUEST TO GET TEXT RESPONSE TO TEXT SEND ==========*/
-                        setBodyWithTextToGetResponse({
-                            "model": "mistral",
-                            "prompt": `${textFromVoice} +(français)`,
-                            "stream": false
-                        })
-                        setConversation([...conversation, {
-                            content: textFromVoice,
-                            vocalName: fileName,
-                            vocalLink: null,
-                        }]);
-
-
-                    }else{
-                        setApiError("audio vide")
-                    }
-
-                } catch (error) {
-                    console.error("Erreur lors de l'appel à l'API :", error);
-
-                    setApiError("Une erreur s'est produite.",error);
+                let headers = {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "multipart/form-data"
                 }
+                setHeadersToGetTextFromVoice(headers)
+                setFormDataToGetTextFromVoice(formData)
 
+
+                console.log(formData)
 
             }
         } catch (err) {
             console.log("faile to stop recordging : ", err)
 
-            setApiError("Une erreur s'est produite.",err);
+            setApiError("Une erreur s'est produite.", err);
         }
     }
 
     async function handleRecordButtonPress() {
         if (recording) {
+
+            setApiError(null)
             const audioUri = await stopRecording(recording)
             if (audioUri) {
                 console.log("saved audio file to ", savedUri)
@@ -261,8 +277,9 @@ export default function AudioScreen() {
 
     async function playAudio(message: object) {
 
+        setApiError(null)
 
-        console.log("play message :", message)
+        console.log("play message :", message.content)
 
         //si on reprend le meme audio
         if (playbackObject && (recordingListened == message.vocalName)) {
@@ -294,14 +311,49 @@ export default function AudioScreen() {
         });
 
         if (!message.vocalName) {
-            await newPlaybackObject.loadAsync({uri: message.vocalLink});
+            console.log("ready to fetch")
+            fetch(message.vocalLink, {
+                method: 'POST',
+                headers: {
+                    "Authorization": "Bearer " + token,
+
+                }
+            }).then(async response => {
+                console.log(response)
+
+                const blob = await response.blob();
+                const blobEdited = new Blob([blob], { type: "audio/wav" });
+
+                const reader = new FileReader();
+
+                reader.onloadend = function() {
+                    // Stocker l'URL dans une variable
+                    const audioUrl = reader.result;
+                    console.log("Audio URL:", audioUrl);
+
+                    // Charger et jouer l'audio
+                    newPlaybackObject.loadAsync({uri: audioUrl})
+                        .then(() => {
+                            return newPlaybackObject.playAsync();
+                        })
+                        .catch(error => {
+                            console.error("Error playing audio:", error);
+                        });
+                };
+
+// Lire le blob en tant que Data URL
+                reader.readAsDataURL(blobEdited);
+
+            })
+
+                .catch((error) => console.error("Erreur :", error));
+
 
         } else {
             await newPlaybackObject.loadAsync({uri: FileSystem.documentDirectory + 'recordings/' + message.vocalName});
 
+            await newPlaybackObject.playAsync();
         }
-
-        await newPlaybackObject.playAsync();
 
 
         setPlaybackObject(newPlaybackObject);
@@ -311,6 +363,8 @@ export default function AudioScreen() {
     }
 
     async function pauseAudio() {
+
+        setApiError(null)
         if (playbackObject) {
             await playbackObject.pauseAsync()
             const status = await playbackObject.getStatusAsync();
@@ -334,7 +388,8 @@ export default function AudioScreen() {
             <ScrollView contentContainerStyle={styles.audioContainer}>
                 {Array.isArray(conversation) && conversation.map((message, index) => (
                     <View key={index} style={[styles.message, index % 2 == 0 ? styles.message1 : styles.message2]}>
-                        <Text> {message.content}</Text>
+                      <Text style={ index % 2 == 0 ? styles.title1 : styles.title2}> { index % 2 == 0  ? "You" : "Felix" }</Text>
+                        <Text style={ index % 2 == 0 ? styles.messageContent1 : styles.messageContent2} > {message.content}</Text>
                         <TouchableOpacity
                             onPress={() => {
                                 if (listenRecording && recordingListened === message.vocalName) {
@@ -346,6 +401,7 @@ export default function AudioScreen() {
                             }}
                         >
                             <FontAwesome
+                                style={ index % 2 == 0 ? styles.iconeMessage1 : styles.iconeMessage2}
                                 name={listenRecording && recordingListened == message.vocalName ? "pause" : "play"}
                                 size={20}
                                 color={"black"}></FontAwesome>
@@ -361,7 +417,7 @@ export default function AudioScreen() {
                 !listenRecording && !bodyWithTextToGetResponse && !urlToGetAudioFromText &&
                 <TouchableOpacity style={styles.microphone} onPress={handleRecordButtonPress}>
 
-                    {apiError && <Text style={{ color: 'red' }}>{apiError}</Text>}
+                    {apiError && <Text style={{color: 'red'}}>{apiError}</Text>}
                     <FontAwesome name={recording ? "square" : "microphone"} size={32} color={"black"}></FontAwesome>
                 </TouchableOpacity>
             }
@@ -399,9 +455,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         width: "100%",
         gap: 10,
-        paddingBottom: 20,
-        height: screenHeight * 0.8,
-        height: "80%",
+        paddingBottom: 10,
+        overflowY: "scroll",
     },
 
     message: {
@@ -410,17 +465,50 @@ const styles = StyleSheet.create({
         borderWidth: 0.5,
         borderStyle: "solid",
         maxWidth: "80%",
-        width: "auto"
+        width: "80%",
+        paddingVertical: 30,
+        display: "flex",
+        flexDirection: "column",
+
+
     }, message1: {
         backgroundColor: "#faebeb",
         borderColor: "#eabbbb",
         alignSelf: "flex-start",
+
     }, message2: {
         backgroundColor: "#ebeffa",
         borderColor: "#bbc1ea",
         alignSelf: "flex-end",
+        textAlign: "right",
+
+    }
+    ,
+    messageContent2:{
+        textAlign: "right",
+    }
+
+    , iconeMessage1: {
+        position: "absolute",
+        bottom: -28,
+        left: -10,
+    }, iconeMessage2: {
+        position: "absolute",
+        bottom: -28,
+        right: -10,
     },
     microphone: {
         height: "10%",
+    },
+    title1 : {
+      fontSize: 20,
+      fontWeight: "bold",
+        alignSelf: "flex-start",
+        textAlign: "left",
+    }, title2 : {
+      fontSize: 20,
+      fontWeight: "bold",
+        alignSelf: "flex-end",
+        textAlign: "right",
     }
 })

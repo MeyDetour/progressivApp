@@ -1,26 +1,23 @@
-
 import {useEffect, useState} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function useAuth() {
-const [data,setData] = useState(null);
+export default function useAuth(loadToken:boolean) {
+    const [data, setData] = useState(null);
     useEffect(() => {
-
-        async function setToStorage() {
+        if (!loadToken){
+            return;
+        }
+        console.log("GET DATA IN COOCKIES")
+        async function getSotrage() {
             try {
 
-                console.log("SEND IN STORAGE")
-                await AsyncStorage.setItem(
-                    '@token:value',
-                    'aaabbbbbbccccccddd',
-                );
 
                 const sotredData = await AsyncStorage.getItem('@token:value');
-                console.log(sotredData);
-
-                if(sotredData !== null){
-                    setData(sotredData);
+                console.log("this is stored data :",sotredData);
+                if (sotredData !== null) {
                     console.log("Data from AsyncStorage:", sotredData);  // Log the data to console
+                    setData(sotredData);
+
                 } else {
                     console.log('No data found');
                 }
@@ -29,12 +26,12 @@ const [data,setData] = useState(null);
             }
         }
 
-        setToStorage()
+        getSotrage()
 
 
     }, [])
 
-    return {data}
+    return data
 
 
 }

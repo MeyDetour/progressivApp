@@ -20,7 +20,7 @@ export default function useApi(link: string, body: object | undefined | null, me
                 console.log('=======================  REQUEST PASSED ==');
                 return;
             }
-        if (method === 'POST' && !body  || method === 'POST' && !formData) {
+        if (method === 'POST' && !body  && method === 'POST' && !formData) {
 
                 console.log('=======================  REQUEST PASSED ==');
                 setLoading(false);
@@ -60,7 +60,7 @@ export default function useApi(link: string, body: object | undefined | null, me
                     console.log("======================= FIN DE LA Tentative de requête ==")
                     return responseJS;
                 } catch (err) {
-                    console.error('Erreur lors de la requête fetch:', err);
+                    console.error('Erreur lors de la requête fetch at :',link," ",method,body,formData," : ", err);
                     setError("Erreur lors de la récupération des données" + err);
                 } finally {
                     setLoading(false);
@@ -79,13 +79,18 @@ export default function useApi(link: string, body: object | undefined | null, me
 export async function SimpleFetch(link: string, body: object | undefined | null, method: string = 'GET', formData: object | undefined | null, headers: object|null|undefined): any {
 
 
-    if (method === 'POST' && !body  || method === 'POST' && !formData) {
+    if (method === 'POST' && !body && method === 'POST' && !formData) {
 
         console.log('=======================  REQUEST PASSED ==');
         return null;
     }
 
     if (link == "") {
+
+        console.log('=======================  REQUEST PASSED ==');
+        return;
+    }
+    if (!headers ) {
 
         console.log('=======================  REQUEST PASSED ==');
         return;
@@ -124,7 +129,7 @@ export async function SimpleFetch(link: string, body: object | undefined | null,
         return responseJS;
 
     } catch (err) {
-        console.error('Erreur lors de la requête fetch:', err);
+        console.error('Erreur lors de la requête fetch at :',link," ",method,body,formData," : ", err);
 
         throw err; // Relancer l'erreur pour la gestion en amont
     }
